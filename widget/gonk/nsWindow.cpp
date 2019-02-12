@@ -52,6 +52,8 @@
 #include "mozilla/TouchEvents.h"
 // TODO: FIXME: #include "HwcComposer2D.h"
 #include "nsImageLoadingContent.h"
+#include "mozilla/layers/IAPZCTreeManager.h"
+#include "mozilla/layers/APZInputBridge.h"
 
 #define LOG(args...) __android_log_print(ANDROID_LOG_INFO, "Gonk", ##args)
 #define LOGW(args...) __android_log_print(ANDROID_LOG_WARN, "Gonk", ##args)
@@ -94,12 +96,14 @@ nsWindow::nsWindow()
 
 nsWindow::~nsWindow()
 {
+#if 0
   if (mScreen->IsPrimaryScreen()) {
 // TODO: FIXME
 #if 0
     mComposer2D->SetCompositorBridgeParent(nullptr);
 #endif
   }
+#endif
 }
 
 void
@@ -111,16 +115,20 @@ nsWindow::DoDraw(void)
     gDrawRequest = true;
     return;
   }
+#else
+  gDrawRequest = true;
 #endif
 
-  uint32_t screenNums = 0;
+  uint32_t screenNums = 1;
   RefPtr<nsScreenManagerGonk> screenManager =
     nsScreenManagerGonk::GetInstance();
+#if 0
   screenManager->GetNumberOfScreens(&screenNums);
+#endif
 
   while (screenNums--) {
-    nsCOMPtr<nsIScreen> screen;
-    screenManager->ScreenForId(screenNums, getter_AddRefs(screen));
+    nsCOMPtr<nsScreenGonk> screen = screenManager->GetPrimaryScreen();
+    //screenManager->ScreenForId(screenNums, getter_AddRefs(screen));
     MOZ_ASSERT(screen);
     if (!screen) {
       continue;
@@ -167,12 +175,13 @@ nsWindow::DoDraw(void)
 void
 nsWindow::ConfigureAPZControllerThread()
 {
-  APZThreadUtils::SetControllerThread(CompositorBridgeParent::CompositorLoop());
+  //FIXME APZThreadUtils::SetControllerThread(CompositorBridgeParent::CompositorLoop());
 }
 
 void
 nsWindow::SetMouseCursorPosition(const ScreenIntPoint& aScreenIntPoint)
 {
+#if 0
   // The only implementation of nsIWidget::SetMouseCursorPosition in nsWindow
   // is for remote control.
   if (gFocusedWindow) {
@@ -183,6 +192,7 @@ nsWindow::SetMouseCursorPosition(const ScreenIntPoint& aScreenIntPoint)
     gFocusedWindow->mCompositorBridgeParent->InvalidateOnCompositorThread();
     gFocusedWindow->mCompositorBridgeParent->ScheduleRenderOnCompositorThread();
   }
+#endif
 }
 
 /*static*/ nsEventStatus
@@ -215,16 +225,19 @@ nsWindow::DispatchTouchInput(MultiTouchInput& aInput)
 /*static*/ void
 nsWindow::SetMouseDevice(bool aMouse)
 {
+#if 0
   if (gFocusedWindow) {
     gFocusedWindow->SetDrawMouse(aMouse);
     ScreenIntPoint point(0, 0);
     nsWindow::NotifyHoverMove(point);
   }
+#endif
 }
 
 /*static*/ void
 nsWindow::NotifyHoverMove(const ScreenIntPoint& point)
 {
+#if 0
   if (gFocusedWindow) {
     // NB: this is a racy use of gFocusedWindow.  We assume that
     // our one and only top widget is already in a stable state by
@@ -233,6 +246,7 @@ nsWindow::NotifyHoverMove(const ScreenIntPoint& point)
     gFocusedWindow->mCompositorBridgeParent->InvalidateOnCompositorThread();
     gFocusedWindow->mCompositorBridgeParent->ScheduleRenderOnCompositorThread();
   }
+#endif
 }
 
 class DispatchTouchInputOnMainThread : public mozilla::Runnable
@@ -276,8 +290,10 @@ nsWindow::KickOffComposition()
     return;
   }
 
+#if 0
   gFocusedWindow->mCompositorBridgeParent->InvalidateOnCompositorThread();
   gFocusedWindow->mCompositorBridgeParent->ScheduleRenderOnCompositorThread();
+#endif
 }
 
 void
@@ -294,7 +310,7 @@ nsWindow::DispatchTouchInputViaAPZ(MultiTouchInput& aInput)
   // First send it through the APZ code
   mozilla::layers::ScrollableLayerGuid guid;
   uint64_t inputBlockId;
-  nsEventStatus result = mAPZC->ReceiveInputEvent(aInput, &guid, &inputBlockId);
+  nsEventStatus result = mAPZC->InputBridge()->ReceiveInputEvent(aInput, &guid, &inputBlockId);
   // If the APZ says to drop it, then we drop it
   if (result == nsEventStatus_eConsumeNoDefault) {
     return;
