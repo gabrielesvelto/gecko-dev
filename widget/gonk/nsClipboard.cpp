@@ -55,7 +55,6 @@ nsClipboard::SetData(nsITransferable *aTransferable,
   // Use a pref to toggle rich text/non-text support.
   if (Preferences::GetBool("clipboard.plainTextOnly")) {
     nsCOMPtr<nsISupports> clip;
-    uint32_t len;
     nsresult rv = aTransferable->GetTransferData(kUnicodeMime,
                                                  getter_AddRefs(clip));
     if (NS_FAILED(rv)) {
@@ -72,94 +71,95 @@ nsClipboard::SetData(nsITransferable *aTransferable,
   }
 
   // Get the types of supported flavors.
-  nsCOMPtr<nsISupportsArray> flavorList;
-  nsresult rv = aTransferable->FlavorsTransferableCanExport(getter_AddRefs(flavorList));
-  if (!flavorList || NS_FAILED(rv)) {
+  nsTArray<nsCString> flavorList;
+  nsresult rv = aTransferable->FlavorsTransferableCanExport(flavorList);
+  if (NS_FAILED(rv)) {
     return NS_ERROR_FAILURE;
   }
 
-  uint32_t flavorCount = 0;
-  flavorList->Count(&flavorCount);
+  uint32_t flavorCount = flavorList.Length();
   bool imageAdded = false;
   for (uint32_t i = 0; i < flavorCount; ++i) {
-    nsCOMPtr<nsISupportsCString> currentFlavor = do_QueryElementAt(flavorList, i);
+    // MIME type
+    auto flavorStr = flavorList[i];
 
-    if (currentFlavor) {
-      // MIME type
-      nsXPIDLCString flavorStr;
-      currentFlavor->ToString(getter_Copies(flavorStr));
+    // Clip is the data which will be sent to the clipboard.
+    nsCOMPtr<nsISupports> clip;
 
-      // Clip is the data which will be sent to the clipboard.
-      nsCOMPtr<nsISupports> clip;
-      uint32_t len;
+    if (flavorStr == kUnicodeMime) {
+      // text/plain
+      const char *c_flavorStr;
 
-      if (flavorStr.EqualsLiteral(kUnicodeMime)) {
-        // text/plain
-        rv = aTransferable->GetTransferData(flavorStr, getter_AddRefs(clip), &len);
-        nsCOMPtr<nsISupportsString> wideString = do_QueryInterface(clip);
-        if (!wideString || NS_FAILED(rv)) {
-          continue;
-        }
-
-        nsAutoString utf16string;
-        wideString->GetData(utf16string);
-        mClipboard->SetText(utf16string);
-      } else if (flavorStr.EqualsLiteral(kHTMLMime)) {
-        // text/html
-        rv = aTransferable->GetTransferData(flavorStr, getter_AddRefs(clip), &len);
-        nsCOMPtr<nsISupportsString> wideString = do_QueryInterface(clip);
-        if (!wideString || NS_FAILED(rv)) {
-          continue;
-        }
-
-        nsAutoString utf16string;
-        wideString->GetData(utf16string);
-        mClipboard->SetHTML(utf16string);
-      } else if (!imageAdded && // image is added only once to the clipboard.
-                 (flavorStr.EqualsLiteral(kNativeImageMime) ||
-                  flavorStr.EqualsLiteral(kPNGImageMime) ||
-                  flavorStr.EqualsLiteral(kJPEGImageMime) ||
-                  flavorStr.EqualsLiteral(kJPGImageMime))) {
-        // image/[png|jpeg|jpg] or application/x-moz-nativeimage
-
-        // Look through our transfer data for the image.
-        static const char* const imageMimeTypes[] = {
-          kNativeImageMime, kPNGImageMime, kJPEGImageMime, kJPGImageMime };
-
-        nsCOMPtr<nsISupportsInterfacePointer> imgPtr;
-        for (uint32_t i = 0; !imgPtr && i < ArrayLength(imageMimeTypes); ++i) {
-          aTransferable->GetTransferData(imageMimeTypes[i], getter_AddRefs(clip), &len);
-          imgPtr = do_QueryInterface(clip);
-        }
-        if (!imgPtr) {
-          continue;
-        }
-
-        nsCOMPtr<nsISupports> imageData;
-        imgPtr->GetData(getter_AddRefs(imageData));
-        nsCOMPtr<imgIContainer> image(do_QueryInterface(imageData));
-        if (!image) {
-          continue;
-        }
-
-        RefPtr<gfx::SourceSurface> surface =
-          image->GetFrame(imgIContainer::FRAME_CURRENT,
-                          imgIContainer::FLAG_SYNC_DECODE);
-        if (!surface) {
-          continue;
-        }
-
-        RefPtr<gfx::DataSourceSurface> dataSurface;
-        if (surface->GetFormat() == gfx::SurfaceFormat::B8G8R8A8) {
-          dataSurface = surface->GetDataSurface();
-        } else {
-          // Convert format to SurfaceFormat::B8G8R8A8.
-          dataSurface = gfxUtils::CopySurfaceToDataSourceSurfaceWithFormat(surface, gfx::SurfaceFormat::B8G8R8A8);
-        }
-
-        mClipboard->SetImage(dataSurface);
-        imageAdded = true;
+      // XXX: I don't know if GetData returns a null terminated string
+      flavorStr.GetData(&c_flavorStr);
+      rv = aTransferable->GetTransferData(c_flavorStr, getter_AddRefs(clip));
+      nsCOMPtr<nsISupportsString> wideString = do_QueryInterface(clip);
+      if (!wideString || NS_FAILED(rv)) {
+        continue;
       }
+
+      nsAutoString utf16string;
+      wideString->GetData(utf16string);
+      mClipboard->SetText(utf16string);
+    } else if (flavorStr == kHTMLMime) {
+      const char *c_flavorStr;
+
+      // XXX: I don't know if GetData returns a null terminated string
+      flavorStr.GetData(&c_flavorStr);
+      // text/html
+      rv = aTransferable->GetTransferData(c_flavorStr, getter_AddRefs(clip));
+      nsCOMPtr<nsISupportsString> wideString = do_QueryInterface(clip);
+      if (!wideString || NS_FAILED(rv)) {
+        continue;
+      }
+
+      nsAutoString utf16string;
+      wideString->GetData(utf16string);
+      mClipboard->SetHTML(utf16string);
+    } else if (!imageAdded && // image is added only once to the clipboard.
+               (flavorStr == kNativeImageMime ||
+                flavorStr == kPNGImageMime ||
+                flavorStr == kJPEGImageMime ||
+                flavorStr == kJPGImageMime)) {
+      // image/[png|jpeg|jpg] or application/x-moz-nativeimage
+
+      // Look through our transfer data for the image.
+      static const char* const imageMimeTypes[] = {
+        kNativeImageMime, kPNGImageMime, kJPEGImageMime, kJPGImageMime };
+
+      nsCOMPtr<nsISupportsInterfacePointer> imgPtr;
+      for (uint32_t i = 0; !imgPtr && i < ArrayLength(imageMimeTypes); ++i) {
+        aTransferable->GetTransferData(imageMimeTypes[i], getter_AddRefs(clip));
+        imgPtr = do_QueryInterface(clip);
+      }
+      if (!imgPtr) {
+        continue;
+      }
+
+      nsCOMPtr<nsISupports> imageData;
+      imgPtr->GetData(getter_AddRefs(imageData));
+      nsCOMPtr<imgIContainer> image(do_QueryInterface(imageData));
+      if (!image) {
+        continue;
+      }
+
+      RefPtr<gfx::SourceSurface> surface =
+        image->GetFrame(imgIContainer::FRAME_CURRENT,
+                        imgIContainer::FLAG_SYNC_DECODE);
+      if (!surface) {
+        continue;
+      }
+
+      RefPtr<gfx::DataSourceSurface> dataSurface;
+      if (surface->GetFormat() == gfx::SurfaceFormat::B8G8R8A8) {
+        dataSurface = surface->GetDataSurface();
+      } else {
+        // Convert format to SurfaceFormat::B8G8R8A8.
+        dataSurface = gfxUtils::CopySurfaceToDataSourceSurfaceWithFormat(surface, gfx::SurfaceFormat::B8G8R8A8);
+      }
+
+      mClipboard->SetImage(dataSurface);
+      imageAdded = true;
     }
   }
 
@@ -190,8 +190,7 @@ nsClipboard::GetData(nsITransferable *aTransferable,
       return rv;
     }
     nsCOMPtr<nsISupports> genericDataWrapper = do_QueryInterface(dataWrapper);
-    uint32_t len = mClipboard->GetText().Length() * sizeof(char16_t);
-    rv = aTransferable->SetTransferData(kUnicodeMime, genericDataWrapper, len);
+    rv = aTransferable->SetTransferData(kUnicodeMime, genericDataWrapper);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
     }
@@ -202,86 +201,85 @@ nsClipboard::GetData(nsITransferable *aTransferable,
   // ones obtained through conversion).
   // Note: We don't need to call nsITransferable::AddDataFlavor here
   //       because ContentParent already did.
-  nsCOMPtr<nsIArrayExtensions> flavorList;
-  nsresult rv = aTransferable->FlavorsTransferableCanImport(getter_AddRefs(flavorList));
+  nsTArray<nsCString> flavorList;
+  nsresult rv = aTransferable->FlavorsTransferableCanImport(flavorList);
 
-  if (!flavorList || NS_FAILED(rv)) {
+  if (NS_FAILED(rv)) {
     return NS_ERROR_FAILURE;
   }
 
   // Walk through flavors and see which flavor matches the one being pasted.
-  uint32_t flavorCount;
-  flavorList->Count(&flavorCount);
+  uint32_t flavorCount = flavorList.Length();
 
   for (uint32_t i = 0; i < flavorCount; ++i) {
-    nsCOMPtr<nsISupportsCString> currentFlavor = do_QueryElementAt(flavorList, i);
+    auto flavorStr = flavorList[i];
 
-    if (currentFlavor) {
-      // flavorStr is the mime type.
-      nsXPIDLCString flavorStr;
-      currentFlavor->ToString(getter_Copies(flavorStr));
-
-      // text/plain, text/Unicode
-      if (flavorStr.EqualsLiteral(kUnicodeMime) && mClipboard->HasText()) {
-        nsresult rv;
-        nsCOMPtr<nsISupportsString> dataWrapper = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv);
-        rv = dataWrapper->SetData(mClipboard->GetText());
-        if (NS_WARN_IF(NS_FAILED(rv))) {
-          continue;
-        }
-
-        nsCOMPtr<nsISupports> genericDataWrapper = do_QueryInterface(dataWrapper);
-        uint32_t len = mClipboard->GetText().Length() * sizeof(char16_t);
-        rv = aTransferable->SetTransferData(flavorStr, genericDataWrapper, len);
-        if (NS_WARN_IF(NS_FAILED(rv))) {
-          continue;
-        }
-        break;
+    // text/plain, text/Unicode
+    if (flavorStr == kUnicodeMime && mClipboard->HasText()) {
+      nsresult rv;
+      nsCOMPtr<nsISupportsString> dataWrapper = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv);
+      rv = dataWrapper->SetData(mClipboard->GetText());
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        continue;
       }
 
-      // text/html
-      if (flavorStr.EqualsLiteral(kHTMLMime) && mClipboard->HasHTML()) {
-        nsresult rv;
-        nsCOMPtr<nsISupportsString> dataWrapper = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv);
-        rv = dataWrapper->SetData(mClipboard->GetHTML());
-        if (NS_WARN_IF(NS_FAILED(rv))) {
-          continue;
-        }
+      nsCOMPtr<nsISupports> genericDataWrapper = do_QueryInterface(dataWrapper);
+      //XXX: Check if GetData returns a null terminated string
+      const char *c_flavorStr;
+      flavorStr.GetData(&c_flavorStr);
+      rv = aTransferable->SetTransferData(c_flavorStr, genericDataWrapper);
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        continue;
+      }
+      break;
+    }
 
-        nsCOMPtr<nsISupports> genericDataWrapper = do_QueryInterface(dataWrapper);
-        uint32_t len = mClipboard->GetHTML().Length() * sizeof(char16_t);
-        rv = aTransferable->SetTransferData(flavorStr, genericDataWrapper, len);
-        if (NS_WARN_IF(NS_FAILED(rv))) {
-          continue;
-        }
-        break;
+    // text/html
+    if (flavorStr == kHTMLMime && mClipboard->HasHTML()) {
+      nsresult rv;
+      nsCOMPtr<nsISupportsString> dataWrapper = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID, &rv);
+      rv = dataWrapper->SetData(mClipboard->GetHTML());
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        continue;
       }
 
-      // image/[png|jpeg|jpg]
-      if ((flavorStr.EqualsLiteral(kPNGImageMime) ||
-           flavorStr.EqualsLiteral(kJPEGImageMime) ||
-           flavorStr.EqualsLiteral(kJPGImageMime)) &&
-          mClipboard->HasImage() ) {
-        // Get image buffer from clipboard.
-        RefPtr<gfx::DataSourceSurface> image = mClipboard->GetImage();
-
-        // Encode according to MIME type.
-        RefPtr<gfxDrawable> drawable = new gfxSurfaceDrawable(image, image->GetSize());
-        nsCOMPtr<imgIContainer> imageContainer(image::ImageOps::CreateFromDrawable(drawable));
-        nsCOMPtr<imgITools> imgTool = do_GetService(NS_IMGTOOLS_CID);
-
-        nsCOMPtr<nsIInputStream> byteStream;
-        imgTool->EncodeImage(imageContainer, flavorStr, EmptyString(), getter_AddRefs(byteStream));
-
-        // Set transferable.
-        nsresult rv = aTransferable->SetTransferData(flavorStr,
-                                                     byteStream,
-                                                     sizeof(nsIInputStream*));
-        if (NS_WARN_IF(NS_FAILED(rv))) {
-          continue;
-        }
-        break;
+      nsCOMPtr<nsISupports> genericDataWrapper = do_QueryInterface(dataWrapper);
+      //XXX: Check if GetData returns a null terminated string
+      const char *c_flavorStr;
+      flavorStr.GetData(&c_flavorStr);
+      rv = aTransferable->SetTransferData(c_flavorStr, genericDataWrapper);
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        continue;
       }
+      break;
+    }
+
+    // image/[png|jpeg|jpg]
+    if ((flavorStr == kPNGImageMime ||
+         flavorStr == kJPEGImageMime ||
+         flavorStr == kJPGImageMime) &&
+        mClipboard->HasImage() ) {
+      //XXX: Check if GetData returns a null terminated string
+      const char *c_flavorStr;
+      flavorStr.GetData(&c_flavorStr);
+      // Get image buffer from clipboard.
+      RefPtr<gfx::DataSourceSurface> image = mClipboard->GetImage();
+
+      // Encode according to MIME type.
+      RefPtr<gfxDrawable> drawable = new gfxSurfaceDrawable(image, image->GetSize());
+      nsCOMPtr<imgIContainer> imageContainer(image::ImageOps::CreateFromDrawable(drawable));
+      nsCOMPtr<imgITools> imgTool = do_GetService(NS_IMGTOOLS_CID);
+
+      nsCOMPtr<nsIInputStream> byteStream;
+      imgTool->EncodeImage(imageContainer, flavorStr, EmptyString(), getter_AddRefs(byteStream));
+
+      // Set transferable.
+      nsresult rv = aTransferable->SetTransferData(c_flavorStr,
+                                                   byteStream);
+      if (NS_WARN_IF(NS_FAILED(rv))) {
+        continue;
+      }
+      break;
     }
   }
 
