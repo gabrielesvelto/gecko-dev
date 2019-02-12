@@ -20,12 +20,9 @@
 #include "Layers.h"
 #include <vector>
 #include "hardware/hwcomposer.h"
+#include "mozilla/gfx/Matrix.h"
 
 namespace mozilla {
-
-namespace gfx {
-class Matrix;
-}
 
 class HwcUtils {
 public:

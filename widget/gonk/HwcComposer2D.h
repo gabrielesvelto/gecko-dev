@@ -19,12 +19,11 @@
 #ifndef mozilla_HwcComposer2D
 #define mozilla_HwcComposer2D
 
-#include "Composer2D.h"
+//#include "Composer2D.h"
 #include "hwchal/HwcHALBase.h"              // for HwcHAL
 #include "HwcUtils.h"                       // for RectVector
 #include "Layers.h"
 #include "mozilla/Mutex.h"
-#include "mozilla/layers/FenceUtils.h"      // for FenceHandle
 #include "mozilla/UniquePtr.h"              // for HwcHAL
 
 #include <vector>

@@ -112,8 +112,11 @@ public:
     override;
   virtual void EndRemoteDrawing() override;
 
-  void SetCursor(nsCursor aDefaultCursor, imgIContainer* aImageCursor,
-                 uint32_t aHotspotX, uint32_t aHotspotY) override {}
+  void SetCursor(nsCursor aDefaultCursor, imgIContainer* aCursor,
+                       uint32_t aHotspotX,
+                       uint32_t aHotspotY) override
+  {
+  }
 
   void UpdateCursorSourceMap(nsCursor aCursor);
   already_AddRefed<mozilla::gfx::SourceSurface> RestyleCursorElement(
@@ -165,6 +168,9 @@ protected:
   // Call this function when the users activity is the direct cause of an
   // event (like a keypress or mouse click).
   void UserActivity();
+
+  void DrawWindowOverlay(mozilla::widget::WidgetRenderingContext* aContext,
+                         LayoutDeviceIntRect aRect) override;
 
 private:
   void EnsureGLCursorImageManager();

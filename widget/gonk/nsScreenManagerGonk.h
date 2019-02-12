@@ -221,8 +221,8 @@ protected:
 
     bool mInitialized;
     nsTArray<RefPtr<nsScreenGonk>> mScreens;
-    RefPtr<mozilla::Runnable> mScreenOnEvent;
-    RefPtr<mozilla::Runnable> mScreenOffEvent;
+    RefPtr<nsIRunnable> mScreenOnEvent;
+    RefPtr<nsIRunnable> mScreenOffEvent;
 
 #if ANDROID_VERSION >= 19
     bool mDisplayEnabled;

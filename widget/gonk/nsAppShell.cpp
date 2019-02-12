@@ -376,18 +376,15 @@ KeyEventDispatcher::DispatchKeyUpEvent()
     DispatchKeyEventInternal(eKeyUp);
 }
 
-// TODO: FIXME
 #if 0
 class SwitchEventRunnable : public mozilla::Runnable {
 public:
-    SwitchEventRunnable(hal::SwitchEvent& aEvent)
-      : mozilla::Runnable("SwitchEventRunnable")
-      , mEvent(aEvent)
-      {}
+    SwitchEventRunnable(::hal::SwitchEvent& aEvent) : mEvent(aEvent)
+    {}
 
     NS_IMETHOD Run()
     {
-        hal::NotifySwitchStateFromInputDevice(mEvent.device(),
+        ::hal::NotifySwitchStateFromInputDevice(mEvent.device(),
           mEvent.status());
         return NS_OK;
     }
@@ -399,7 +396,6 @@ private:
 static void
 updateHeadphoneSwitch()
 {
-// TODO: FIXME
 #if 0
     hal::SwitchEvent event;
 
@@ -845,28 +841,25 @@ NS_IMPL_RELEASE(nsRepeatKeyTimer)
 NS_INTERFACE_MAP_BEGIN(nsRepeatKeyTimer)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsITimerCallback)
   NS_INTERFACE_MAP_ENTRY(nsITimerCallback)
-NS_INTERFACE_MAP_END
+NS_INTERFACE_MAP_END//_THREADSAFE
 
 
 // GeckoInputReaderPolicy
 void
 GeckoInputReaderPolicy::setDisplayInfo()
 {
-// TODO: FIXME
-#if 0
-    static_assert(static_cast<int>(nsIScreen::ROTATION_0_DEG) ==
+    static_assert(static_cast<int>(ROTATION_0) ==
                   static_cast<int>(DISPLAY_ORIENTATION_0),
                   "Orientation enums not matched!");
-    static_assert(static_cast<int>(nsIScreen::ROTATION_90_DEG) ==
+    static_assert(static_cast<int>(ROTATION_90) ==
                   static_cast<int>(DISPLAY_ORIENTATION_90),
                   "Orientation enums not matched!");
-    static_assert(static_cast<int>(nsIScreen::ROTATION_180_DEG) ==
+    static_assert(static_cast<int>(ROTATION_180) ==
                   static_cast<int>(DISPLAY_ORIENTATION_180),
                   "Orientation enums not matched!");
-    static_assert(static_cast<int>(nsIScreen::ROTATION_270_DEG) ==
+    static_assert(static_cast<int>(ROTATION_270) ==
                   static_cast<int>(DISPLAY_ORIENTATION_270),
                   "Orientation enums not matched!");
-#endif
 
     RefPtr<nsScreenGonk> screen = nsScreenManagerGonk::GetPrimaryScreen();
 

@@ -36,7 +36,7 @@
 #include "nsAppShell.h"
 #include "nsProxyRelease.h"
 #include "nsTArray.h"
-#include "pixelflinger/format.h"
+//#include "pixelflinger/format.h"
 #include "nsIDisplayInfo.h"
 #include "libui/cutils_log.h"
 
@@ -111,9 +111,9 @@ static uint32_t
 SurfaceFormatToColorDepth(int32_t aSurfaceFormat)
 {
     switch (aSurfaceFormat) {
-    case GGL_PIXEL_FORMAT_RGB_565:
+    case HAL_PIXEL_FORMAT_RGB_565:
         return 16;
-    case GGL_PIXEL_FORMAT_RGBA_8888:
+    case HAL_PIXEL_FORMAT_RGBA_8888:
         return 32;
     }
     return 24; // GGL_PIXEL_FORMAT_RGBX_8888

@@ -123,6 +123,8 @@ CXXFLAGS += [
     '-Wno-pointer-bool-conversion',
     '-Wno-unused-private-field',
     '-Wno-overloaded-virtual',
+    '-Wno-unused-result',
+    '-Wno-unused-function',
     '-Wno-unused-value',
     '-Wno-comma',
 ]

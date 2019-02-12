@@ -58,6 +58,8 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsClipboard)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsClipboardHelper)
 
 NS_DEFINE_NAMED_CID(NS_APPSHELL_CID);
+//NS_DEFINE_NAMED_CID(NS_WINDOW_CID);
+//NS_DEFINE_NAMED_CID(NS_CHILD_CID);
 NS_DEFINE_NAMED_CID(NS_SCREENMANAGER_CID);
 NS_DEFINE_NAMED_CID(NS_HTMLFORMATCONVERTER_CID);
 NS_DEFINE_NAMED_CID(NS_IDLE_SERVICE_CID);
@@ -75,6 +77,8 @@ ScreenManagerConstructor(nsISupports *aOuter, REFNSIID aIID, void **aResult)
 }
 
 static const mozilla::Module::CIDEntry kWidgetCIDs[] = {
+    //{ &kNS_WINDOW_CID, false, nullptr, nsWindowConstructor },
+    //{ &kNS_CHILD_CID, false, nullptr, nsWindowConstructor },
     { &kNS_APPSHELL_CID, false, nullptr, nsAppShellConstructor },
     { &kNS_SCREENMANAGER_CID, false, nullptr, ScreenManagerConstructor },
     { &kNS_HTMLFORMATCONVERTER_CID, false, nullptr, nsHTMLFormatConverterConstructor },
@@ -87,6 +91,8 @@ static const mozilla::Module::CIDEntry kWidgetCIDs[] = {
 };
 
 static const mozilla::Module::ContractIDEntry kWidgetContracts[] = {
+    //{ "@mozilla.org/widgets/window/gonk;1", &kNS_WINDOW_CID },
+    //{ "@mozilla.org/widgets/child_window/gonk;1", &kNS_CHILD_CID },
     { "@mozilla.org/widget/appshell/gonk;1", &kNS_APPSHELL_CID },
     { "@mozilla.org/gfx/screenmanager;1", &kNS_SCREENMANAGER_CID },
     { "@mozilla.org/widget/htmlformatconverter;1", &kNS_HTMLFORMATCONVERTER_CID },

@@ -677,19 +677,6 @@ nsWindow::EnsureGLCursorImageManager()
   // mGLCursorImageManager = new GLCursorImageManager();
 }
 
-void
-nsWindow::SetCursor(nsCursor aCursor)
-{
-  nsBaseWidget::SetCursor(aCursor);
-
-  // if (mGLCursorImageManager) {
-  //   // Prepare GLCursor if it doesn't exist
-  //   mGLCursorImageManager->PrepareCursorImage(aCursor, this);
-  //   mGLCursorImageManager->HasSetCursor();
-  //   KickOffComposition();
-  // }
-}
-
 static void
 StopRenderWithHwc(bool aStop)
 {
@@ -797,6 +784,30 @@ nsWindow::MakeFullScreen(bool aFullScreen, nsIScreen*)
   return NS_OK;
 }
 
+void
+nsWindow::DrawWindowOverlay(mozilla::widget::WidgetRenderingContext* aContext,
+                            LayoutDeviceIntRect aRect)
+{
+  // if (aManager && mGLCursorImageManager) {
+  //   CompositorOGL* compositor =
+  //     static_cast<CompositorOGL*>(aManager->GetCompositor());
+  //   if (compositor) {
+  //     if (mGLCursorImageManager->ShouldDrawGLCursor() &&
+  //         mGLCursorImageManager->IsCursorImageReady(mCursor)) {
+  //       GLCursorImageManager::GLCursorImage cursorImage =
+  //         mGLCursorImageManager->GetGLCursorImage(mCursor);
+  //       LayoutDeviceIntPoint position =
+  //         mGLCursorImageManager->GetGLCursorPosition();
+  //       compositor->DrawGLCursor(aRect,
+  //                                position,
+  //                                cursorImage.mSurface,
+  //                                cursorImage.mImgSize,
+  //                                cursorImage.mHotspot);
+  //     }
+  //   }
+  // }
+}
+
 already_AddRefed<DrawTarget>
 nsWindow::StartRemoteDrawing()
 {
@@ -842,8 +853,7 @@ nsWindow::GetDefaultScaleInternal()
 LayerManager*
 nsWindow::GetLayerManager(PLayerTransactionChild* aShadowManager,
                           LayersBackend aBackendHint,
-                          LayerManagerPersistence aPersistence,
-                          bool* aAllowRetaining)
+                          LayerManagerPersistence aPersistence)
 {
   if (aAllowRetaining) {
     *aAllowRetaining = true;

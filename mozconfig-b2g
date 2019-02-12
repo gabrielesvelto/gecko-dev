@@ -13,6 +13,9 @@ ac_add_options --with-android-version=23
 # Auto-clobber
 mk_add_options AUTOCLOBBER=1
 
+# sccache
+# ac_add_options --with-ccache=sccache
+
 # Gonk-specific stuff
 ac_add_options --with-gonk-gfx
 #ac_add_options --with-gonk="$GONK_PATH"

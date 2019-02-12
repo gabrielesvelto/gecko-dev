@@ -11,6 +11,7 @@
 #include "nsISupportsPrimitives.h"
 #include "nsAppStartupNotifier.h"
 #include "nsISimpleEnumerator.h"
+#include "nsIObserver.h"
 
 /* static */ nsresult nsAppStartupNotifier::NotifyObservers(
     const char* aTopic) {
