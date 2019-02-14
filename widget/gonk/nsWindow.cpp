@@ -918,13 +918,17 @@ nsWindow::DestroyCompositor()
   nsBaseWidget::DestroyCompositor();
 }
 
-#if 0
 CompositorBridgeParent*
 nsWindow::NewCompositorBridgeParent(int aSurfaceWidth, int aSurfaceHeight)
 {
-  return new CompositorBridgeParent(this, true, aSurfaceWidth, aSurfaceHeight);
+  return new CompositorBridgeParent(
+    nullptr, CSSToLayoutDeviceScale(),
+    TimeDuration::FromMilliseconds(17),
+    CompositorOptions(),
+    false,
+    gfx::IntSize(aSurfaceWidth, aSurfaceHeight)
+  );
 }
-#endif
 
 void
 nsWindow::BringToTop()

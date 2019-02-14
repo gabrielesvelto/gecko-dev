@@ -267,7 +267,7 @@ if toolkit in ('cocoa', 'windows'):
     ]
 
 if toolkit in {'gtk3', 'cocoa', 'windows',
-               'android', 'uikit'}:
+               'android', 'uikit', 'gonk'}:
     UNIFIED_SOURCES += [
         'nsBaseFilePicker.cpp',
     ]

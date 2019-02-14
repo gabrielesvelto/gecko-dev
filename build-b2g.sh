@@ -3,7 +3,7 @@
 set -e
 
 export MOZCONFIG=mozconfig-b2g
-export GONK_PATH=$HOME/projects/B2G
+export GONK_PATH=$HOME/work/B2G
 export GONK_PRODUCT_NAME=generic
 
 # Check that the GONK_PATH environment variable is set.
@@ -26,7 +26,7 @@ fi
 
 export MOZCONFIG=`pwd`/mozconfig-b2g
 
-export NDK_DIR=/home/gsvelto/.mozbuild/android-ndk-r17b/
+export NDK_DIR=/home/walac/work/android-ndk-r17b
 
 export PATH=$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64/bin:$GONK_PATH/prebuilts/linux-x86_64/bin/:$PATH
 
@@ -57,6 +57,7 @@ export CFLAGS="-DANDROID -DTARGET_OS_GONK \
 -I$GONK_PATH/system/core/libpixelflinger/include/ \
 -I$GONK_PATH/frameworks/native/include \
 -I$GONK_PATH/system \
+-I$(pwd)/modules/freetype2/include \
 -I$GONK_PATH/system/core/include \
 -I$GONK_PATH/external/zlib"
 
@@ -72,8 +73,8 @@ export ANDROID_NDK=$NDK_DIR
 export ANDROID_PLATFORM=android-23
 
 export LDFLAGS="-L$GONK_PATH/out/target/product/$GONK_PRODUCT_NAME/obj/lib \
--Wl,-v \
 -Wl,-rpath-link=$GONK_PATH/out/target/product/$GONK_PRODUCT_NAME/obj/lib \
---sysroot=$NDK_DIR/sysroot $GCC_LIB -ldl -lstdc++"
+--sysroot=$NDK_DIR/sysroot $GCC_LIB -ldl -lstdc++ -Wl,--no-as-needed \
+-lbinder -lutils -lhardware -lhardware_legacy -lpower"
 
 ./mach build $@

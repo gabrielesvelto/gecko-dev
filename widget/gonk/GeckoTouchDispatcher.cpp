@@ -79,11 +79,11 @@ GeckoTouchDispatcher::GeckoTouchDispatcher()
   gfxPrefs::GetSingleton();
 
   mEnabledUniformityInfo = gfxPrefs::UniformityInfo();
-  mVsyncAdjust = TimeDuration::FromMilliseconds(gfxPrefs::TouchVsyncSampleAdjust());
-  mMaxPredict = TimeDuration::FromMilliseconds(gfxPrefs::TouchResampleMaxPredict());
-  mMinDelta = TimeDuration::FromMilliseconds(gfxPrefs::TouchResampleMinDelta());
-  mOldTouchThreshold = TimeDuration::FromMilliseconds(gfxPrefs::TouchResampleOldTouchThreshold());
-  mDelayedVsyncThreshold = TimeDuration::FromMilliseconds(gfxPrefs::TouchResampleVsyncDelayThreshold());
+  mVsyncAdjust = TimeDuration::FromMilliseconds(0/*gfxPrefs::TouchVsyncSampleAdjust()*/);
+  mMaxPredict = TimeDuration::FromMilliseconds(0/*gfxPrefs::TouchResampleMaxPredict()*/);
+  mMinDelta = TimeDuration::FromMilliseconds(0/*gfxPrefs::TouchResampleMinDelta()*/);
+  mOldTouchThreshold = TimeDuration::FromMilliseconds(0/*gfxPrefs::TouchResampleOldTouchThreshold()*/);
+  mDelayedVsyncThreshold = TimeDuration::FromMilliseconds(0/*gfxPrefs::TouchResampleVsyncDelayThreshold()*/);
 }
 
 void
@@ -106,9 +106,11 @@ GeckoTouchDispatcher::NotifyVsync(TimeStamp aVsyncTimestamp)
 void
 GeckoTouchDispatcher::NotifyTouch(MultiTouchInput& aTouch, TimeStamp aEventTime)
 {
+#if 0
   if (mCompositorVsyncScheduler) {
     mCompositorVsyncScheduler->SetNeedsComposite();
   }
+#endif
 
   if (aTouch.mType == MultiTouchInput::MULTITOUCH_MOVE) {
     // NB: we could dispatch this to content as a mousemove event, if
@@ -127,7 +129,7 @@ GeckoTouchDispatcher::NotifyTouch(MultiTouchInput& aTouch, TimeStamp aEventTime)
       // move events because we might end up dispatching events out of order.
       // Instead, fall back to a non-resampling in-order dispatch until we're
       // done processing the non-move events.
-      layers::APZThreadUtils::RunOnControllerThread(NewRunnableMethod(
+      layers::APZThreadUtils::RunOnControllerThread(NewRunnableMethod<mozilla::MultiTouchInput>("GonkTouch",
         this, &GeckoTouchDispatcher::DispatchTouchEvent, aTouch));
       return;
     }
@@ -139,7 +141,7 @@ GeckoTouchDispatcher::NotifyTouch(MultiTouchInput& aTouch, TimeStamp aEventTime)
       MutexAutoLock lock(mTouchQueueLock);
       mInflightNonMoveEvents++;
     }
-    layers::APZThreadUtils::RunOnControllerThread(NewRunnableMethod(
+    layers::APZThreadUtils::RunOnControllerThread(NewRunnableMethod<mozilla::MultiTouchInput>("GonkTouch",
       this, &GeckoTouchDispatcher::DispatchTouchNonMoveEvent, aTouch));
   }
 }
@@ -356,7 +358,6 @@ GeckoTouchDispatcher::DispatchTouchEvent(MultiTouchInput aMultiTouch)
         touchAction = "Touch_Event_Down";
         break;
       case MultiTouchInput::MULTITOUCH_MOVE:
-      case MultiTouchInput::MULTITOUCH_MOVE:
         touchAction = "Touch_Event_Move";
         break;
       case MultiTouchInput::MULTITOUCH_END:
@@ -365,8 +366,8 @@ GeckoTouchDispatcher::DispatchTouchEvent(MultiTouchInput aMultiTouch)
         break;
     }
 
-    const ScreenIntPoint& touchPoint = aMultiTouch.mTouches[0].mScreenPoint;
-    TouchDataPayload* payload = new TouchDataPayload(touchPoint);
+    //const ScreenIntPoint& touchPoint = aMultiTouch.mTouches[0].mScreenPoint;
+    //TouchDataPayload* payload = new TouchDataPayload(touchPoint);
     // PROFILER_MARKER_PAYLOAD(touchAction, payload);
   }
 }

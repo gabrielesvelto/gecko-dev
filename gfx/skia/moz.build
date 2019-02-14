@@ -603,7 +603,7 @@ if CONFIG['MOZ_ENABLE_SKIA_GPU']:
         'skia/src/sksl/SkSLHCodeGenerator.cpp',
         'skia/src/sksl/SkSLLexer.cpp',
     ]
-if CONFIG['MOZ_WIDGET_TOOLKIT'] == 'android':
+if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('android', 'gonk'):
     UNIFIED_SOURCES += [
         'skia/src/ports/SkDebug_android.cpp',
         'skia/src/ports/SkOSFile_posix.cpp',
@@ -818,7 +818,7 @@ if CONFIG['CC_TYPE'] in ('clang', 'clang-cl'):
         '-Wno-unused-private-field',
     ]
 
-if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk3', 'android'):
+if CONFIG['MOZ_WIDGET_TOOLKIT'] in ('gtk3', 'android', 'gonk'):
     CXXFLAGS += CONFIG['MOZ_CAIRO_CFLAGS']
     CXXFLAGS += CONFIG['CAIRO_FT_CFLAGS']
 

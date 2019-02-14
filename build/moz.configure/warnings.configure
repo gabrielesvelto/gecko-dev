@@ -202,6 +202,7 @@ check_and_add_gcc_warning('-Wno-mismatched-tags')
 check_and_add_gcc_warning('-Wno-unused-private-field')
 check_and_add_gcc_warning('-Wno-macro-redefined')
 check_and_add_gcc_warning('-Wno-overloaded-virtual')
+check_and_add_gcc_warning('-Wno-format')
 
 # Please keep these last in this file
 add_old_configure_assignment('_WARNINGS_CFLAGS', warnings_flags.cflags)

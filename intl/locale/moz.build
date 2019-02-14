@@ -16,6 +16,8 @@ elif 'gtk' in toolkit:
     DIRS += ['gtk']
 elif toolkit == 'android':
     DIRS += ['android']
+elif toolkit == 'gonk':
+    DIRS += ['gonk']
 
 XPIDL_SOURCES += [
     'mozILocaleService.idl',
