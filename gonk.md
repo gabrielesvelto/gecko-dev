@@ -32,3 +32,13 @@ Package the build in the emulator:
 - run the emulator with `./run-emulator.sh`
 
 Note that Gecko now builds with clang > 3.8 instead of gcc. It's unclear if it's mandatory for now but it's likely that gcc builds will break sooner or later.
+
+Getting core dumps:
+
+- Apply `coredump.patch` to the B2G directory
+- Replace `B2G/system/core/toolbox` by `https://github.com/walac/toolbox`
+- Create a symbolic link from `<gecko-dev-dir>/obj-arm-unknown-linux-androideabi` to `B2G/objdir-gecko`
+- The core files are created at `/data/core/` directory
+- Use `out/target/host/linux-x866/bin/adb pull` to pull the core file
+- Run `./run-gdb.sh core <corefile>`
+

@@ -1,0 +1,49 @@
+
+project build/
+diff --git a/envsetup.sh b/envsetup.sh
+index c55988f..aeb8644 100644
+--- a/envsetup.sh
++++ b/envsetup.sh
+@@ -551,7 +551,7 @@ function lunch()
+ 
+     export TARGET_PRODUCT=$product
+     export TARGET_BUILD_VARIANT=$variant
+-    export TARGET_BUILD_TYPE=release
++    export TARGET_BUILD_TYPE=${TARGET_BUILD_TYPE:-release}
+ 
+     echo
+ 
+@@ -616,7 +616,7 @@ function tapas()
+     export TARGET_PRODUCT=$product
+     export TARGET_BUILD_VARIANT=$variant
+     export TARGET_BUILD_DENSITY=$density
+-    export TARGET_BUILD_TYPE=release
++    export TARGET_BUILD_TYPE=${TARGET_BUILD_TYPE:-release}
+     export TARGET_BUILD_APPS=$apps
+ 
+     set_stuff_for_environment
+
+project gonk-misc/
+diff --git a/b2g.sh b/b2g.sh
+index 991698c..00e86e4 100755
+--- a/b2g.sh
++++ b/b2g.sh
+@@ -24,7 +24,7 @@ if [ "$DEBUG" == "1" ]; then
+   if [ "$COREDUMP" == "all" ]; then
+     /system/bin/b2g-prlimit 0 core -1 -1
+   elif [ "$COREDUMP" == "b2g" ]; then
+-    ulimit -c -1
++    ulimit -c unlimited
+   fi
+ fi
+ 
+diff --git a/init.b2g.rc b/init.b2g.rc
+index aac8734..d98093a 100644
+--- a/init.b2g.rc
++++ b/init.b2g.rc
+@@ -33,3 +33,5 @@ on boot
+     # Hard limit keeps default value(4096).
+     setrlimit 7 2048 4096
+     write /proc/sys/net/ipv6/conf/default/use_tempaddr 2
++    setprop persist.debug.coredump b2g
++    echo 1 > /proc/sys/kernel/core_uses_pid
