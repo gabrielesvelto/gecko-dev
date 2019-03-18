@@ -339,7 +339,6 @@ pref("dom.ipc.tabs.disabled", true);
 pref("dom.ipc.tabs.disabled", false);
 pref("layers.acceleration.disabled", false);
 pref("layers.async-pan-zoom.enabled", true);
-pref("gfx.content.azure.backends", "cairo");
 #endif
 
 // Web Notifications
