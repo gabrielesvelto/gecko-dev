@@ -14,6 +14,10 @@
 #include "nsThreadUtils.h"
 #include "SharedSurface.h"
 
+#ifdef MOZ_WIDGET_GONK
+#include "SharedSurfaceGralloc.h"
+#endif
+
 using namespace mozilla::gl;
 
 namespace mozilla {
@@ -39,6 +43,16 @@ void SharedSurfaceTextureData::FillInfo(TextureData::Info& aInfo) const {
 bool SharedSurfaceTextureData::Serialize(SurfaceDescriptor& aOutDescriptor) {
   return mSurf->ToSurfaceDescriptor(&aOutDescriptor);
 }
+
+#ifdef MOZ_WIDGET_GONK
+GrallocTextureData* SharedSurfaceTextureData::AsGrallocTextureData() {
+  auto* surf = mSurf->AsSharedSurface_Gralloc();
+  if (!surf) {
+    return nullptr;
+  }
+  return surf->GetGrallocTextureData();
+}
+#endif
 
 SharedSurfaceTextureClient::SharedSurfaceTextureClient(
     SharedSurfaceTextureData* aData, TextureFlags aFlags,

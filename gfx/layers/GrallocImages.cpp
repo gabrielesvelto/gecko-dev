@@ -73,14 +73,13 @@ GrallocImage::SetData(const Data& aData)
     return false;
   }
 
-  ClientIPCAllocator* allocator = ImageBridgeChild::GetSingleton();
+  RefPtr<ImageBridgeChild> allocator = ImageBridgeChild::GetSingleton().get();
   GrallocTextureData* texData = GrallocTextureData::Create(mData.mYSize, HAL_PIXEL_FORMAT_YV12,
                                                            gfx::BackendType::NONE,
                                                            GraphicBuffer::USAGE_SW_READ_OFTEN |
                                                              GraphicBuffer::USAGE_SW_WRITE_OFTEN |
                                                              GraphicBuffer::USAGE_HW_TEXTURE,
-                                                           allocator
-  );
+                                                           ImageBridgeChild::GetSingleton().get());
 
   if (!texData) {
     return false;
@@ -375,6 +374,9 @@ ConvertOmxYUVFormatToRGB565(android::sp<GraphicBuffer>& aBuffer,
     return OK;
   }
 
+  // FIXME
+  return BAD_VALUE;
+#if 0
   android::ColorConverter colorConverter((OMX_COLOR_FORMATTYPE)omxFormat,
                                          OMX_COLOR_Format16bitRGB565);
   if (!colorConverter.isValid()) {
@@ -393,6 +395,7 @@ ConvertOmxYUVFormatToRGB565(android::sp<GraphicBuffer>& aBuffer,
   }
 
   return OK;
+#endif
 }
 
 already_AddRefed<gfx::DataSourceSurface>
@@ -469,7 +472,7 @@ GrallocImage::GetNativeBuffer()
 }
 
 TextureClient*
-GrallocImage::GetTextureClient(CompositableClient* aClient)
+GrallocImage::GetTextureClient(KnowsCompositor* aForwarder)
 {
   return mTextureClient;
 }

@@ -34,6 +34,11 @@
 #include "mozilla/layers/AtomicRefCountedWithFinalize.h"
 #include "mozilla/gfx/Rect.h"
 
+#ifdef MOZ_WIDGET_GONK
+#  include "mozilla/layers/FenceUtils.h"
+#  include "mozilla/layers/LayerRenderState.h"
+#endif
+
 class MacIOSurface;
 namespace mozilla {
 namespace ipc {
@@ -67,6 +72,10 @@ class PTextureParent;
 class TextureParent;
 class WebRenderTextureHost;
 class WrappingTextureSourceYCbCrBasic;
+
+#ifdef MOZ_WIDGET_GONK
+class GrallocTextureHostOGL;
+#endif
 
 /**
  * A view on a TextureHost where the texture is internally represented as tiles
@@ -623,6 +632,9 @@ class TextureHost : public AtomicRefCountedWithFinalize<TextureHost> {
     return nullptr;
   }
   virtual WebRenderTextureHost* AsWebRenderTextureHost() { return nullptr; }
+#ifdef MOZ_WIDGET_GONK
+  virtual GrallocTextureHostOGL* AsGrallocTextureHostOGL() { return nullptr; }
+#endif
 
   // Create the corresponding RenderTextureHost type of this texture, and
   // register the RenderTextureHost into render thread.
@@ -670,6 +682,21 @@ class TextureHost : public AtomicRefCountedWithFinalize<TextureHost> {
 
   virtual bool SupportsWrNativeTexture() { return false; }
 
+#ifdef MOZ_WIDGET_GONK
+  virtual void WaitAcquireFenceHandleSyncComplete() {};
+
+  /**
+   * Specific to B2G's Composer2D
+   * XXX - more doc here
+   */
+  virtual LayerRenderState GetRenderState()
+  {
+    // By default we return an empty render state, this should be overridden
+    // by the TextureHost implementations that are used on B2G with Composer2D
+    return LayerRenderState();
+  }
+#endif
+
  protected:
   virtual void ReadUnlock();
 
@@ -694,6 +721,11 @@ class TextureHost : public AtomicRefCountedWithFinalize<TextureHost> {
   int mCompositableCount;
   uint64_t mFwdTransactionId;
   bool mReadLocked;
+
+#ifdef MOZ_WIDGET_GONK
+  FenceHandle mReleaseFenceHandle;
+  FenceHandle mAcquireFenceHandle;
+#endif
 
   friend class Compositor;
   friend class TextureParent;

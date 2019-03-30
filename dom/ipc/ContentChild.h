@@ -170,6 +170,12 @@ class ContentChild final : public PContentChild,
   mozilla::ipc::IPCResult RecvInitProcessHangMonitor(
       Endpoint<PProcessHangMonitorChild>&& aHangMonitor);
 
+  mozilla::ipc::IPCResult RecvInitBufferManager(
+      Endpoint<PSharedBufferManagerChild> aBufferManager);
+
+  mozilla::ipc::IPCResult RecvReinitBufferManager(
+      Endpoint<PSharedBufferManagerChild> aBufferManager);
+
   mozilla::ipc::IPCResult RecvInitRendering(
       Endpoint<PCompositorManagerChild>&& aCompositor,
       Endpoint<PImageBridgeChild>&& aImageBridge,

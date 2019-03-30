@@ -50,6 +50,7 @@ namespace gl {
 
 class GLContext;
 class SurfaceFactory;
+class SharedSurface_Gralloc;
 class ShSurfHandle;
 
 class SharedSurface {
@@ -168,6 +169,8 @@ class SharedSurface {
   virtual bool ReadbackBySharedHandle(gfx::DataSourceSurface* out_surface) {
     return false;
   }
+
+  virtual SharedSurface_Gralloc* AsSharedSurface_Gralloc() { return nullptr; }
 };
 
 template <typename T>

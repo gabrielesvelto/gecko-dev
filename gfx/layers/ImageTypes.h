@@ -89,7 +89,14 @@ enum class ImageFormat {
    * An opaque handle that refers to an Image stored in the GPU
    * process.
    */
-  GPU_VIDEO
+  GPU_VIDEO,
+
+  /**
+   * The GRALLOC_PLANAR_YCBCR format creates a GrallocImage, a subtype of
+   * PlanarYCbCrImage. It takes a PlanarYCbCrImage data or the raw gralloc
+   * data and can be used as a texture by Gonk backend directly.
+   */
+  GRALLOC_PLANAR_YCBCR,
 };
 
 enum class StereoMode {
