@@ -31,14 +31,17 @@ class Mutex;
 
 namespace layers {
 
+// Since Android O, SharedBufferManagerChild should not be necessary.
+// android::Graphic buffer could be allocated via Binderized HAL.
+
 class SharedBufferManagerParent : public PSharedBufferManagerParent
 {
 friend class GrallocReporter;
 public:
-  /**
-   * Create a SharedBufferManagerParent for child process, and link to the child side before leaving
-   */
-  static PSharedBufferManagerParent* Create(Transport* aTransport, ProcessId aOtherProcess);
+  NS_INLINE_DECL_THREADSAFE_REFCOUNTING(SharedBufferManagerParent);
+
+  static SharedBufferManagerParent* CreateSameProcess();
+  static bool CreateForContent(Endpoint<PSharedBufferManagerParent>&& aEndpoint);
 
 #ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
   android::sp<android::GraphicBuffer> GetGraphicBuffer(int64_t key);
@@ -47,8 +50,7 @@ public:
   /**
    * Create a SharedBufferManagerParent but do not open the link
    */
-  SharedBufferManagerParent(Transport* aTransport, ProcessId aOwner, base::Thread* aThread);
-  virtual ~SharedBufferManagerParent();
+  SharedBufferManagerParent(ProcessId aOwner, base::Thread* aThread);
 
   /**
    * When the IPC channel down or something bad make this Manager die, clear all the buffer reference!
@@ -63,14 +65,12 @@ public:
    */
   static void DropGrallocBuffer(ProcessId id, mozilla::layers::SurfaceDescriptor aDesc);
 
-  // Overriden from IToplevelProtocol
-  IToplevelProtocol*
-  CloneToplevel(const InfallibleTArray<ProtocolFdMapping>& aFds,
-                base::ProcessHandle aPeerProcess,
-                mozilla::ipc::ProtocolCloneContext* aCtx);
   MessageLoop* GetMessageLoop();
 
 protected:
+  virtual ~SharedBufferManagerParent();
+
+  void Bind(Endpoint<PSharedBufferManagerParent>&& aEndpoint);
 
   /**
    * Break the buffer's sharing state, decrease buffer reference for both side
@@ -80,7 +80,7 @@ protected:
   void DropGrallocBufferImpl(mozilla::layers::SurfaceDescriptor aDesc);
 
   // dispatched function
-  static void DropGrallocBufferSync(SharedBufferManagerParent* mgr, mozilla::layers::SurfaceDescriptor aDesc);
+  void DropGrallocBufferSync(mozilla::layers::SurfaceDescriptor aDesc);
 
   /**
    * Function for find the buffer owner, most buffer passing on IPC contains only owner/key pair.
@@ -100,8 +100,11 @@ protected:
    */
   std::map<int64_t, android::sp<android::GraphicBuffer> > mBuffers;
 #endif
+
+  // This keeps us alive until ActorDestroy(), at which point we do a
+  // deferred destruction of ourselves.
+  RefPtr<SharedBufferManagerParent> mSelfRef;
   
-  Transport* mTransport;
   base::ProcessId mOwner;
   base::Thread* mThread;
   MessageLoop* mMainMessageLoop;

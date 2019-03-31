@@ -26,6 +26,10 @@
 #include <vector>
 #include "mozilla/WidgetUtils.h"
 
+#ifdef MOZ_WIDGET_GONK
+#  include "mozilla/layers/FenceUtils.h"
+#endif
+
 /**
  * Different elements of a web pages are rendered into separate "layers" before
  * they are flattened into the final image that is brought to the screen.
@@ -520,6 +524,12 @@ class Compositor : public TextureSourceProvider {
   void SetInvalid();
   virtual bool IsValid() const override;
   CompositorBridgeParent* GetCompositorBridgeParent() const { return mParent; }
+
+#ifdef MOZ_WIDGET_GONK
+  // TODO FIXME
+  void SetDispAcquireFence(Layer* aLayer, nsIWidget* aWidget) {}
+  FenceHandle GetReleaseFence() { return FenceHandle(); }
+#endif
 
  protected:
   void DrawDiagnosticsInternal(DiagnosticFlags aFlags,

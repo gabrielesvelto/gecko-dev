@@ -2514,8 +2514,15 @@ void ContentParent::InitInternal(ProcessPriority aInitialPriority) {
   Endpoint<PVRManagerChild> vrBridge;
   Endpoint<PVideoDecoderManagerChild> videoManager;
   AutoTArray<uint32_t, 3> namespaces;
+  DebugOnly<bool> opened;
 
-  DebugOnly<bool> opened =
+#ifdef MOZ_WIDGET_GONK
+  Endpoint<PSharedBufferManagerChild> bufferManager;
+  opened = gpm->CreateBufferManager(OtherPid(), &bufferManager);
+  MOZ_ASSERT(opened);
+  Unused << SendInitBufferManager(std::move(bufferManager));
+#endif
+  opened =
       gpm->CreateContentBridges(OtherPid(), &compositor, &imageBridge,
                                 &vrBridge, &videoManager, &namespaces);
   MOZ_ASSERT(opened);
@@ -2678,8 +2685,16 @@ void ContentParent::OnCompositorUnexpectedShutdown() {
   Endpoint<PVRManagerChild> vrBridge;
   Endpoint<PVideoDecoderManagerChild> videoManager;
   AutoTArray<uint32_t, 3> namespaces;
+  DebugOnly<bool> opened;
 
-  DebugOnly<bool> opened =
+#ifdef MOZ_WIDGET_GONK
+  Endpoint<PSharedBufferManagerChild> bufferManager;
+  opened = gpm->CreateBufferManager(OtherPid(), &bufferManager);
+  MOZ_ASSERT(opened);
+  Unused << SendReinitBufferManager(std::move(bufferManager));
+#endif
+
+  opened =
       gpm->CreateContentBridges(OtherPid(), &compositor, &imageBridge,
                                 &vrBridge, &videoManager, &namespaces);
   MOZ_ASSERT(opened);

@@ -186,6 +186,7 @@ already_AddRefed<TextureHost> TextureHost::Create(
       break;
 
     case SurfaceDescriptor::TSurfaceDescriptorMacIOSurface:
+    case SurfaceDescriptor::TSurfaceDescriptorGralloc:
       if (aBackend == LayersBackend::LAYERS_OPENGL ||
           aBackend == LayersBackend::LAYERS_WR) {
         result = CreateTextureHostOGL(aDesc, aDeallocator, aBackend, aFlags);

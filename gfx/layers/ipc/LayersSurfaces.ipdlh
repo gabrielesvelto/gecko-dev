@@ -4,6 +4,8 @@
 
 using struct gfxPoint from "gfxPoint.h";
 using nsIntRegion from "nsRegion.h";
+using struct mozilla::layers::MagicGrallocBufferHandle from "gfxipc/ShadowLayerUtils.h";
+using struct mozilla::layers::GrallocBufferRef from "gfxipc/ShadowLayerUtils.h";
 using struct mozilla::layers::SurfaceDescriptorX11 from "gfxipc/ShadowLayerUtils.h";
 using mozilla::StereoMode from "ImageTypes.h";
 using mozilla::YUVColorSpace from "ImageTypes.h";
@@ -15,12 +17,14 @@ using mozilla::gfx::IntRect from "mozilla/gfx/Rect.h";
 using mozilla::gfx::IntSize from "mozilla/gfx/Point.h";
 using mozilla::ipc::SharedMemoryBasic::Handle from "mozilla/ipc/SharedMemoryBasic.h";
 using gfxImageFormat from "gfxTypes.h";
+using struct mozilla::layers::GonkNativeHandle from "mozilla/layers/GonkNativeHandleUtils.h";
 
 namespace mozilla {
 namespace layers {
 
 union OverlayHandle {
   int32_t;
+  GonkNativeHandle;
   null_t;
 };
 
@@ -30,6 +34,8 @@ struct OverlaySource {
 };
 
 union MaybeMagicGrallocBufferHandle {
+  MagicGrallocBufferHandle;
+  GrallocBufferRef;
   null_t;
 };
 

@@ -52,6 +52,10 @@
 #  include "mozilla/layers/MacIOSurfaceTextureClientOGL.h"
 #endif
 
+#ifdef MOZ_WIDGET_GONK
+#  include "mozilla/layers/GrallocTextureClient.h"
+#endif
+
 #if 0
 #  define RECYCLE_LOG(...) printf_stderr(__VA_ARGS__)
 #else
@@ -1088,6 +1092,18 @@ already_AddRefed<TextureClient> TextureClient::CreateForDrawing(
 #ifdef MOZ_WIDGET_ANDROID
   if (!data && gfxPrefs::UseSurfaceTextureTextures()) {
     data = AndroidNativeWindowTextureData::Create(aSize, aFormat);
+  }
+#endif
+
+#ifdef MOZ_WIDGET_GONK
+  if (!data) {
+    TextureAllocationFlags allocFlags = aAllocFlags;
+    if (aFormat == SurfaceFormat::B8G8R8X8) {
+      // Skia doesn't support RGBX, so ensure we clear the buffer for the proper
+      // alpha values.
+      allocFlags = TextureAllocationFlags(aAllocFlags | ALLOC_CLEAR_BUFFER);
+    }
+    data = GrallocTextureData::CreateForDrawing(aSize, aFormat, moz2DBackend, aAllocator, allocFlags);
   }
 #endif
 

@@ -11,6 +11,10 @@
 #include "mozilla/layers/ImageBridgeParent.h"
 #include "mozilla/media/MediaSystemResourceService.h"
 
+#ifdef MOZ_WIDGET_GONK
+#  include "mozilla/layers/SharedBufferManagerParent.h"
+#endif
+
 namespace mozilla {
 
 namespace gfx {

@@ -8,12 +8,13 @@
 
 #include "mozilla/layers/CompositorTypes.h"
 #include "mozilla/layers/LayersSurfaces.h"
+#include "mozilla/UniquePtr.h"
 #include "SharedSurface.h"
 
 namespace mozilla {
 namespace layers {
+class GrallocTextureData;
 class LayersIPCChannel;
-class TextureClient;
 }
 
 namespace gl {
@@ -41,7 +42,7 @@ protected:
     GLLibraryEGL* const mEGL;
     EGLSync mSync;
     RefPtr<layers::LayersIPCChannel> mAllocator;
-    RefPtr<layers::TextureClient> mTextureClient;
+    UniquePtr<layers::GrallocTextureData> mTextureData;
     const GLuint mProdTex;
 
     SharedSurface_Gralloc(GLContext* prodGL,
@@ -49,7 +50,7 @@ protected:
                           bool hasAlpha,
                           GLLibraryEGL* egl,
                           layers::LayersIPCChannel* allocator,
-                          layers::TextureClient* textureClient,
+                          UniquePtr<layers::GrallocTextureData> textureData,
                           GLuint prodTex);
 
     static bool HasExtensions(GLLibraryEGL* egl, GLContext* gl);
@@ -69,13 +70,15 @@ public:
         return mProdTex;
     }
 
-    layers::TextureClient* GetTextureClient() {
-        return mTextureClient;
-    }
-
     virtual bool ToSurfaceDescriptor(layers::SurfaceDescriptor* const out_descriptor) override;
 
     virtual bool ReadbackBySharedHandle(gfx::DataSourceSurface* out_surface) override;
+
+    virtual SharedSurface_Gralloc* AsSharedSurface_Gralloc() override { return this; }
+
+    layers::GrallocTextureData* GetGrallocTextureData() {
+        return mTextureData.get();
+    }
 };
 
 class SurfaceFactory_Gralloc

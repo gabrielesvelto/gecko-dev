@@ -27,6 +27,7 @@ class SurfaceFactory;
 
 namespace layers {
 
+class GrallocTextureData;
 class SharedSurfaceTextureClient;
 
 class SharedSurfaceTextureData : public TextureData {
@@ -49,6 +50,10 @@ class SharedSurfaceTextureData : public TextureData {
   virtual bool Serialize(SurfaceDescriptor& aOutDescriptor) override;
 
   virtual void Deallocate(LayersIPCChannel*) override;
+
+#ifdef MOZ_WIDGET_GONK
+  virtual GrallocTextureData* AsGrallocTextureData() override;
+#endif
 
   gl::SharedSurface* Surf() const { return mSurf.get(); }
 };

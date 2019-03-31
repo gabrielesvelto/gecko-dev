@@ -17,6 +17,7 @@ include protocol PFileDescriptorSet;
 include protocol PHal;
 include protocol PHeapSnapshotTempFileHelper;
 include protocol PProcessHangMonitor;
+include protocol PSharedBufferManager;
 include protocol PImageBridge;
 include protocol PIPCBlobInputStream;
 include protocol PLoginReputation;
@@ -404,6 +405,12 @@ child:
     async InitGMPService(Endpoint<PGMPServiceChild> service);
     async InitProcessHangMonitor(Endpoint<PProcessHangMonitorChild> hangMonitor);
     async InitProfiler(Endpoint<PProfilerChild> aEndpoint);
+
+    async InitBufferManager(
+      Endpoint<PSharedBufferManagerChild> bufferManager);
+
+    async ReinitBufferManager(
+      Endpoint<PSharedBufferManagerChild> bufferManager);
 
     // Give the content process its endpoints to the compositor.
     async InitRendering(

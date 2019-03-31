@@ -7,17 +7,13 @@
 
 #include "base/task.h"                  // for NewRunnableFunction, etc
 #include "base/thread.h"                // for Thread
-#include "base/tracked.h"               // for FROM_HERE
 #include "mozilla/gfx/Logging.h"        // for gfxDebug
 #include "mozilla/layers/SharedBufferManagerChild.h"
 #include "mozilla/layers/SharedBufferManagerParent.h"
 #include "mozilla/StaticPtr.h"          // for StaticRefPtr
 #include "mozilla/ReentrantMonitor.h"   // for ReentrantMonitor, etc
+#include "mtransport/runnable_utils.h"
 #include "nsThreadUtils.h"              // fo NS_IsMainThread
-
-#ifdef MOZ_NUWA_PROCESS
-#include "ipc/Nuwa.h"
-#endif
 
 #ifdef MOZ_WIDGET_GONK
 #define LOG(args...) __android_log_print(ANDROID_LOG_INFO, "SBMChild", ## args)
@@ -29,13 +25,14 @@ namespace layers {
 using namespace mozilla::gfx;
 
 // Singleton
+StaticMutex SharedBufferManagerChild::sSharedBufferManagerSingletonLock;
 SharedBufferManagerChild* SharedBufferManagerChild::sSharedBufferManagerChildSingleton = nullptr;
-SharedBufferManagerParent* SharedBufferManagerChild::sSharedBufferManagerParentSingleton = nullptr;
 base::Thread* SharedBufferManagerChild::sSharedBufferManagerChildThread = nullptr;
 
 SharedBufferManagerChild::SharedBufferManagerChild()
+  : mCanSend(false)
 #ifdef MOZ_HAVE_SURFACEDESCRIPTORGRALLOC
-  : mBufferMutex("BufferMonitor")
+  ,mBufferMutex("BufferMonitor")
 #endif
 {
 }
@@ -44,29 +41,6 @@ static bool
 InSharedBufferManagerChildThread()
 {
   return SharedBufferManagerChild::sSharedBufferManagerChildThread->thread_id() == PlatformThread::CurrentId();
-}
-
-// dispatched function
-static void
-DeleteSharedBufferManagerSync(ReentrantMonitor *aBarrier, bool *aDone)
-{
-  ReentrantMonitorAutoEnter autoMon(*aBarrier);
-
-  MOZ_ASSERT(InSharedBufferManagerChildThread(),
-             "Should be in SharedBufferManagerChild thread.");
-  SharedBufferManagerChild::sSharedBufferManagerChildSingleton = nullptr;
-  SharedBufferManagerChild::sSharedBufferManagerParentSingleton = nullptr;
-  *aDone = true;
-  aBarrier->NotifyAll();
-}
-
-// dispatched function
-static void
-ConnectSharedBufferManager(SharedBufferManagerChild *child, SharedBufferManagerParent *parent)
-{
-  MessageLoop *parentMsgLoop = parent->GetMessageLoop();
-  ipc::MessageChannel *parentChannel = parent->GetIPCChannel();
-  child->Open(parentChannel, parentMsgLoop, mozilla::ipc::ChildSide);
 }
 
 base::Thread*
@@ -88,83 +62,118 @@ SharedBufferManagerChild::IsCreated()
 }
 
 void
-SharedBufferManagerChild::StartUp()
-{
-  NS_ASSERTION(NS_IsMainThread(), "Should be on the main Thread!");
-  SharedBufferManagerChild::StartUpOnThread(new base::Thread("BufferMgrChild"));
-}
-
-static void
-ConnectSharedBufferManagerInChildProcess(mozilla::ipc::Transport* aTransport,
-                                         base::ProcessId aOtherPid)
-{
-  // Bind the IPC channel to the shared buffer manager thread.
-  SharedBufferManagerChild::sSharedBufferManagerChildSingleton->Open(aTransport,
-                                                                     aOtherPid,
-                                                                     XRE_GetIOMessageLoop(),
-                                                                     ipc::ChildSide);
-
-#ifdef MOZ_NUWA_PROCESS
-  if (IsNuwaProcess()) {
-    SharedBufferManagerChild::sSharedBufferManagerChildThread
-      ->message_loop()->PostTask(FROM_HERE,
-                                 NewRunnableFunction(NuwaMarkCurrentThread,
-                                                     (void (*)(void *))nullptr,
-                                                     (void *)nullptr));
-  }
-#endif
-}
-
-PSharedBufferManagerChild*
-SharedBufferManagerChild::StartUpInChildProcess(Transport* aTransport,
-                                                base::ProcessId aOtherPid)
-{
-  NS_ASSERTION(NS_IsMainThread(), "Should be on the main Thread!");
-
-  sSharedBufferManagerChildThread = new base::Thread("BufferMgrChild");
-  if (!sSharedBufferManagerChildThread->Start()) {
-    return nullptr;
-  }
-
-  sSharedBufferManagerChildSingleton = new SharedBufferManagerChild();
-  sSharedBufferManagerChildSingleton->GetMessageLoop()->PostTask(
-    FROM_HERE,
-    NewRunnableFunction(ConnectSharedBufferManagerInChildProcess,
-                        aTransport, aOtherPid));
-
-  return sSharedBufferManagerChildSingleton;
-}
-
-void
 SharedBufferManagerChild::ShutDown()
 {
   NS_ASSERTION(NS_IsMainThread(), "Should be on the main Thread!");
-  if (IsCreated()) {
-    SharedBufferManagerChild::DestroyManager();
+  if (RefPtr<SharedBufferManagerChild> child = GetSingleton()) {
+    child->DestroyManager();
     delete sSharedBufferManagerChildThread;
     sSharedBufferManagerChildThread = nullptr;
   }
 }
 
-bool
-SharedBufferManagerChild::StartUpOnThread(base::Thread* aThread)
-{
-  MOZ_ASSERT(aThread, "SharedBufferManager needs a thread.");
-  if (sSharedBufferManagerChildSingleton != nullptr) {
-    return false;
+void
+SharedBufferManagerChild::InitSameProcess() {
+  NS_ASSERTION(NS_IsMainThread(), "Should be on the main Thread!");
+
+  MOZ_ASSERT(!sSharedBufferManagerChildSingleton);
+  MOZ_ASSERT(!sSharedBufferManagerChildThread);
+
+  sSharedBufferManagerChildThread = new base::Thread("BufferMgrChild");
+  if (!sSharedBufferManagerChildThread->IsRunning()) {
+    sSharedBufferManagerChildThread->Start();
   }
 
-  sSharedBufferManagerChildThread = aThread;
-  if (!aThread->IsRunning()) {
-    aThread->Start();
+  RefPtr<SharedBufferManagerChild> child = new SharedBufferManagerChild();
+  RefPtr<SharedBufferManagerParent> parent = SharedBufferManagerParent::CreateSameProcess();
+
+  RefPtr<Runnable> runnable =
+      WrapRunnable(child, &SharedBufferManagerChild::BindSameProcess, parent);
+  child->GetMessageLoop()->PostTask(runnable.forget());
+
+  // Assign this after so other threads can't post messages before we connect to
+  // IPDL.
+  {
+    StaticMutexAutoLock lock(sSharedBufferManagerSingletonLock);
+    sSharedBufferManagerChildSingleton = child;
   }
-  sSharedBufferManagerChildSingleton = new SharedBufferManagerChild();
-  char thrname[128];
-  base::snprintf(thrname, 128, "BufMgrParent#%d", base::Process::Current().pid());
-  sSharedBufferManagerParentSingleton = new SharedBufferManagerParent(
-    nullptr, base::Process::Current().pid(), new base::Thread(thrname));
-  sSharedBufferManagerChildSingleton->ConnectAsync(sSharedBufferManagerParentSingleton);
+}
+
+void SharedBufferManagerChild::Bind(Endpoint<PSharedBufferManagerChild>&& aEndpoint) {
+  if (!aEndpoint.Bind(this)) {
+    return;
+  }
+
+  // This reference is dropped in DeallocPSharedBufferManagerChild.
+  this->AddRef();
+
+  mCanSend = true;
+}
+
+
+void
+SharedBufferManagerChild::BindSameProcess(RefPtr<SharedBufferManagerParent> aParent) {
+  MessageLoop* parentMsgLoop = aParent->GetMessageLoop();
+  ipc::MessageChannel* parentChannel = aParent->GetIPCChannel();
+  Open(parentChannel, parentMsgLoop, mozilla::ipc::ChildSide);
+
+  // This reference is dropped in DeallocPSharedBufferManagerChild.
+  this->AddRef();
+
+  mCanSend = true;
+}
+
+bool SharedBufferManagerChild::InitForContent(Endpoint<PSharedBufferManagerChild>&& aEndpoint) {
+  MOZ_ASSERT(NS_IsMainThread());
+
+  gfxPlatform::GetPlatform();
+
+  if (!sSharedBufferManagerChildThread) {
+    sSharedBufferManagerChildThread = new base::Thread("SharedBufferManagerChild");
+    bool success = sSharedBufferManagerChildThread->Start();
+    MOZ_RELEASE_ASSERT(success, "Failed to start SharedBufferManagerChild thread!");
+  }
+
+  RefPtr<SharedBufferManagerChild> child = new SharedBufferManagerChild();
+
+  RefPtr<Runnable> runnable = NewRunnableMethod<Endpoint<PSharedBufferManagerChild>&&>(
+      "layers::SharedBufferManagerChild::Bind", child, &SharedBufferManagerChild::Bind,
+      std::move(aEndpoint));
+  child->GetMessageLoop()->PostTask(runnable.forget());
+
+  // Assign this after so other threads can't post messages before we connect to
+  // IPDL.
+  {
+    StaticMutexAutoLock lock(sSharedBufferManagerSingletonLock);
+    sSharedBufferManagerChildSingleton = child;
+  }
+
   return true;
+}
+
+bool SharedBufferManagerChild::ReinitForContent(Endpoint<PSharedBufferManagerChild>&& aEndpoint) {
+  MOZ_ASSERT(NS_IsMainThread());
+
+  // Note that at this point, ActorDestroy may not have been called yet,
+  // meaning mCanSend is still true. In this case we will try to send a
+  // synchronous WillClose message to the parent, and will certainly get a
+  // false result and a MsgDropped processing error. This is okay.
+  ShutDown();
+
+  return InitForContent(std::move(aEndpoint));
+}
+
+// dispatched function
+void
+SharedBufferManagerChild::DoShutdown(SynchronousTask* aTask)
+{
+  AutoCompleteTask complete(aTask);
+
+  MOZ_ASSERT(InSharedBufferManagerChildThread(),
+             "Should be in SharedBufferManagerChild thread.");
+  MarkShutDown();
+  StaticMutexAutoLock lock(sSharedBufferManagerSingletonLock);
+  SharedBufferManagerChild::sSharedBufferManagerChildSingleton = nullptr;
 }
 
 void
@@ -175,20 +184,33 @@ SharedBufferManagerChild::DestroyManager()
   // ...because we are about to dispatch synchronous messages to the
   // BufferManagerChild thread.
 
-  if (!IsCreated()) {
-    return;
+  {
+    SynchronousTask task("SharedBufferManagerChild Shutdown lock");
+
+    RefPtr<Runnable> runnable =
+        WrapRunnable(RefPtr<SharedBufferManagerChild>(this),
+                     &SharedBufferManagerChild::DoShutdown, &task);
+    GetMessageLoop()->PostTask(runnable.forget());
+
+    task.Wait();
   }
+}
 
-  ReentrantMonitor barrier("BufferManagerDestroyTask lock");
-  ReentrantMonitorAutoEnter autoMon(barrier);
+void
+SharedBufferManagerChild::ActorDestroy(ActorDestroyReason aWhy) {
+  MOZ_ASSERT(InSharedBufferManagerChildThread());
+  mCanSend = false;
+}
 
-  bool done = false;
-  sSharedBufferManagerChildSingleton->GetMessageLoop()->PostTask(FROM_HERE,
-    NewRunnableFunction(&DeleteSharedBufferManagerSync, &barrier, &done));
-  while (!done) {
-    barrier.Wait();
-  }
+bool
+SharedBufferManagerChild::CanSend() const {
+  return mCanSend;
+}
 
+void
+SharedBufferManagerChild::MarkShutDown() {
+  MOZ_ASSERT(InSharedBufferManagerChildThread());
+  mCanSend = false;
 }
 
 MessageLoop *
@@ -199,27 +221,17 @@ SharedBufferManagerChild::GetMessageLoop() const
       nullptr;
 }
 
-void
-SharedBufferManagerChild::ConnectAsync(SharedBufferManagerParent* aParent)
-{
-  GetMessageLoop()->PostTask(FROM_HERE, NewRunnableFunction(&ConnectSharedBufferManager,
-                                                            this, aParent));
-}
-
 // dispatched function
 void
 SharedBufferManagerChild::AllocGrallocBufferSync(const GrallocParam& aParam,
-                                                 Monitor* aBarrier,
-                                                 bool* aDone)
+                                                 SynchronousTask* aTask)
 {
-  MonitorAutoLock autoMon(*aBarrier);
+  AutoCompleteTask complete(aTask);
 
   sSharedBufferManagerChildSingleton->AllocGrallocBufferNow(aParam.size,
                                                             aParam.format,
                                                             aParam.usage,
                                                             aParam.buffer);
-  *aDone = true;
-  aBarrier->NotifyAll();
 }
 
 // dispatched function
@@ -245,17 +257,16 @@ SharedBufferManagerChild::AllocGrallocBuffer(const gfx::IntSize& aSize,
     return SharedBufferManagerChild::AllocGrallocBufferNow(aSize, aFormat, aUsage, aBuffer);
   }
 
-  Monitor barrier("AllocSurfaceDescriptorGralloc Lock");
-  MonitorAutoLock autoMon(barrier);
-  bool done = false;
+  {
+    SynchronousTask task("SharedBufferManagerChild AllocGrallocBuffer lock");
 
-  GetMessageLoop()->PostTask(
-    FROM_HERE,
-    NewRunnableFunction(&AllocGrallocBufferSync,
-                        GrallocParam(aSize, aFormat, aUsage, aBuffer), &barrier, &done));
+    RefPtr<Runnable> runnable =
+        WrapRunnable(RefPtr<SharedBufferManagerChild>(this),
+                     &SharedBufferManagerChild::AllocGrallocBufferSync,
+                     GrallocParam(aSize, aFormat, aUsage, aBuffer), &task);
+    GetMessageLoop()->PostTask(runnable.forget());
 
-  while (!done) {
-    barrier.Wait();
+    task.Wait();
   }
   return true;
 }
@@ -286,7 +297,7 @@ SharedBufferManagerChild::AllocGrallocBufferNow(const IntSize& aSize,
   }
   return true;
 #else
-  NS_RUNTIMEABORT("No GrallocBuffer for you");
+  MOZ_CRASH("No GrallocBuffer for you");
   return true;
 #endif
 }
@@ -305,8 +316,11 @@ SharedBufferManagerChild::DeallocGrallocBuffer(const mozilla::layers::MaybeMagic
     return SharedBufferManagerChild::DeallocGrallocBufferNow(aBuffer);
   }
 
-  GetMessageLoop()->PostTask(FROM_HERE, NewRunnableFunction(&DeallocGrallocBufferSync,
-                                                            aBuffer));
+  RefPtr<Runnable> runnable =
+      WrapRunnable(RefPtr<SharedBufferManagerChild>(this),
+                   &SharedBufferManagerChild::DeallocGrallocBufferSync,
+                   aBuffer);
+  GetMessageLoop()->PostTask(runnable.forget());
 }
 
 void
@@ -321,7 +335,7 @@ SharedBufferManagerChild::DeallocGrallocBufferNow(const mozilla::layers::MaybeMa
   }
   SendDropGrallocBuffer(aBuffer);
 #else
-  NS_RUNTIMEABORT("No GrallocBuffer for you");
+  MOZ_CRASH("No GrallocBuffer for you");
 #endif
 }
 

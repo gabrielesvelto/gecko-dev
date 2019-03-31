@@ -34,6 +34,10 @@
 #  include "SharedSurfaceGLX.h"
 #endif
 
+#ifdef MOZ_WIDGET_GONK
+#  include "SharedSurfaceGralloc.h"
+#endif
+
 namespace mozilla {
 namespace gl {
 
@@ -95,6 +99,10 @@ UniquePtr<SurfaceFactory> GLScreenBuffer::CreateFactory(
     } else {
       factory =
           SurfaceFactory_SurfaceTexture::Create(gl, caps, ipcChannel, flags);
+    }
+#elif defined(MOZ_WIDGET_GONK)
+    if (!gfxPrefs::DisableGralloc()) {
+        factory = MakeUnique<SurfaceFactory_Gralloc>(gl, caps, ipcChannel, flags);
     }
 #else
     if (gl->GetContextType() == GLContextType::EGL) {
